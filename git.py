@@ -1,6 +1,8 @@
 from functools import reduce
 
 import os
+import re
+
 
 class GitLog:
     '''Open git log for a given repository as a file.
@@ -31,6 +33,53 @@ class GitLog:
         repository = self.repository and f'-C {self.repository}' or ''
 
         return f'git {repository} log {authors} {start_date} {end_date} --date iso --date-order --branches'
+
+
+class GitLogFileParser:
+    '''Parses git commits from a file object.
+
+    Example:
+        >>> log = GitLog(repository=os.getcwd(), authors=['walterkaunda@live.co.uk'], end_date='2019-05-16')
+        >>> commit = GitLogFileParser(log.open()).parse()[0]
+        >>> commit['id']
+        '8c13c3d2d86aaff65211ee2c9c29ee4b7582784a'
+        >>> commit['date']
+        '2019-05-15 21:20:54 +0200'
+        >>> commit['author']
+        'Walter Kaunda <walterkaunda@live.co.uk>'
+    '''
+
+    def __init__(self, log_file):
+        self.log_file = log_file
+
+    def parse(self, commit_transformer=lambda commit: commit):
+        commits = []
+
+        current_commit = {}
+
+        for line in self.log_file:
+            if line.isspace():
+                continue
+            elif line.startswith('commit'):
+                if current_commit:
+                    commits.append(current_commit)
+                    current_commit = {'body': ''}
+
+                _, commit_id = line.split(' ', 1)
+                current_commit['id'] = commit_id.strip()
+            elif line.startswith('Author') or line.startswith('Date'):
+                field, value = re.split(r'\s+', line, 1)
+                current_commit[field.lower()[:-1]] = value.strip()
+            else:
+                body = current_commit.get('body', '')
+                line = line.lstrip()
+                current_commit['body'] = f'{body}{line}'
+
+        if current_commit:
+            commits.append(current_commit)
+
+        return commits
+
 
 
 if __name__ == '__main__':
