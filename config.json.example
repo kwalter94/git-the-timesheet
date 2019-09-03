@@ -1,0 +1,9 @@
+{
+    "username": "foobar",
+    "email": "foo@bar.com",
+    "repos": [
+        "/path/to/repo": {
+            "donor": "some-donor"
+        }
+    ]
+}
